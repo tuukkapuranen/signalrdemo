@@ -12,12 +12,14 @@ namespace SignalRDemo
 
         public void UpdateModel( MarkerModel clientModel )
         {
+            // send the marker state to all other clients except the one sending the update
             _theMarker = clientModel;
             Clients.AllExcept( Context.ConnectionId ).updateMarker( clientModel );
         }
 
         public void RequestUpdate()
         {
+            // send the marker state to the client requesting the update
             Clients.Caller.updateMarker( _theMarker );
         }
     }

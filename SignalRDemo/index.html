@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
 </head>
 <body>
+    <div id="map"></div>
+
     <script src="Scripts/jquery-1.6.4.min.js"></script>
     <script src="Scripts/jquery.signalR-2.1.0.min.js"></script>
     <script src="signalr/hubs"></script>
@@ -18,42 +20,37 @@
         $(function () {
 
             var map = L.map('map').setView([62.25, 25.75], 13);
+            var moveMarkerHub = $.connection.markerHub;
+            var marker = L.marker([0, 0], { draggable: true }).addTo(map);
 
             L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="http://osm.org">OpenStreetMap</a> contributors.',
                 maxZoom: 18
             }).addTo(map);
 
-            var moveMarkerHub = $.connection.markerHub,
-            markerModel = {
-                latitude: 0,
-                longitude: 0
-            };
-
-            var marker = L.marker([markerModel.latitude, markerModel.longitude], { draggable: true }).addTo(map);
-
-            marker.on('dragend', function (e) {
-                markerModel = {
-                    latitude: e.target._latlng.lat,
-                    longitude: e.target._latlng.lng
-                };
-                moveMarkerHub.server.updateModel(markerModel);
-
+            $.connection.hub.start().done(function () {
+                // ask the server to send the current state after we connect
+                moveMarkerHub.server.requestUpdate();
             });
 
             moveMarkerHub.client.updateMarker = function (model) {
-                markerModel = model;
-                marker.setLatLng(L.latLng([markerModel.latitude, markerModel.longitude]));
+                // set marker location based on server sent update
+                marker.setLatLng(L.latLng([model.latitude, model.longitude]));
             };
 
-            $.connection.hub.start().done(function () {
-                moveMarkerHub.server.requestUpdate();
+            marker.on('dragend', function (e) {
+
+                // send the server the new location after drag and drop
+                moveMarkerHub.server.updateModel(
+                {
+                    latitude: e.target._latlng.lat,
+                    longitude: e.target._latlng.lng
+                });
+
             });
 
         });
     </script>
-
-    <div id="map"></div>
 
 </body>
 </html>

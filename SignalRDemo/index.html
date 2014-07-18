@@ -1,0 +1,59 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>NFleet SignalR Demo</title>
+    <style type="text/css">
+        #map {
+            height: 1000px;
+        }
+    </style>
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.css" />
+</head>
+<body>
+    <script src="Scripts/jquery-1.6.4.min.js"></script>
+    <script src="Scripts/jquery.signalR-2.1.0.min.js"></script>
+    <script src="signalr/hubs"></script>
+    <script src="http://cdn.leafletjs.com/leaflet-0.7.3/leaflet.js"></script>
+    <script type="text/javascript">
+        $(function () {
+
+            var map = L.map('map').setView([62.25, 25.75], 13);
+
+            L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="http://osm.org">OpenStreetMap</a> contributors. Imagery Powered by MapBox.',
+                maxZoom: 18
+            }).addTo(map);
+
+            var moveMarkerHub = $.connection.markerHub,
+            markerModel = {
+                latitude: 0,
+                longitude: 0
+            };
+
+            var marker = L.marker([markerModel.latitude, markerModel.longitude], { draggable: true }).addTo(map);
+
+            marker.on('dragend', function (e) {
+                markerModel = {
+                    latitude: e.target._latlng.lat,
+                    longitude: e.target._latlng.lng
+                };
+                moveMarkerHub.server.updateModel(markerModel);
+
+            });
+
+            moveMarkerHub.client.updateMarker = function (model) {
+                markerModel = model;
+                marker.setLatLng(L.latLng([markerModel.latitude, markerModel.longitude]));
+            };
+
+            $.connection.hub.start().done(function () {
+                moveMarkerHub.server.requestUpdate();
+            });
+
+        });
+    </script>
+
+    <div id="map"></div>
+
+</body>
+</html>

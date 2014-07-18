@@ -21,33 +21,59 @@
 
             var map = L.map('map').setView([62.25, 25.75], 13);
             var moveMarkerHub = $.connection.markerHub;
-            var marker = L.marker([0, 0], { draggable: true }).addTo(map);
+            var markers = {};
 
             L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
                 attribution: '&copy; <a href="http://osm.org">OpenStreetMap</a> contributors.',
                 maxZoom: 18
             }).addTo(map);
 
+            map.doubleClickZoom.disable();
+
+            map.on('click', function (e) {
+                moveMarkerHub.server.updateModel(
+                {
+                    id: Math.floor((Math.random() * 100000) + 1),
+                    latitude: e.latlng.lat,
+                    longitude: e.latlng.lng
+                });
+            });
+
             $.connection.hub.start().done(function () {
-                // ask the server to send the current state after we connect
                 moveMarkerHub.server.requestUpdate();
             });
 
             moveMarkerHub.client.updateMarker = function (model) {
-                // set marker location based on server sent update
-                marker.setLatLng(L.latLng([model.latitude, model.longitude]));
+
+                for (var i = 0; i < model.length; i++) {
+                    if (markers[model[i].id] == undefined) {
+                        markers[model[i].id] = L.marker([0, 0], { draggable: true });
+                        markers[model[i].id].addTo(map);
+                        markers[model[i].id].on('dragend', function (e) {
+
+                            moveMarkerHub.server.updateModel(
+                            {
+                                id: e.target.id,
+                                latitude: e.target._latlng.lat,
+                                longitude: e.target._latlng.lng
+                            });
+
+                        });
+                        markers[model[i].id].on('contextmenu', function (e) {
+
+                            moveMarkerHub.server.delete(
+                            {
+                                id: e.target.id,
+                            });
+
+                        });
+                    }
+                    markers[model[i].id].setLatLng(L.latLng([model[i].latitude, model[i].longitude]));
+                    markers[model[i].id].id = model[i].id;
+                }
             };
 
-            marker.on('dragend', function (e) {
 
-                // send the server the new location after drag and drop
-                moveMarkerHub.server.updateModel(
-                {
-                    latitude: e.target._latlng.lat,
-                    longitude: e.target._latlng.lng
-                });
-
-            });
 
         });
     </script>

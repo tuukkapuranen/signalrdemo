@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNet.SignalR;
+﻿using System.Collections.Generic;
+using System.Linq;
+using Microsoft.AspNet.SignalR;
 using Newtonsoft.Json;
 
 namespace SignalRDemo
@@ -8,19 +10,36 @@ namespace SignalRDemo
 
     public class MarkerHub : Hub
     {
-        private static MarkerModel _theMarker = new MarkerModel { Latitude = 62.25, Longitude = 25.75 };
+        private static readonly Dictionary<int, MarkerModel> markers = new Dictionary<int, MarkerModel>();
+
+        static MarkerHub()
+        {
+            markers.Add( 7, new MarkerModel { Id = 7, Latitude = 62.25, Longitude = 25.75 } );
+        }
 
         public void UpdateModel( MarkerModel clientModel )
         {
+            // create new marker if needed
+            if ( markers.ContainsKey( clientModel.Id ) )
+                markers[clientModel.Id] = clientModel;
+            else
+                markers.Add( clientModel.Id, clientModel );
+
             // send the marker state to all other clients except the one sending the update
-            _theMarker = clientModel;
-            Clients.AllExcept( Context.ConnectionId ).updateMarker( clientModel );
+            Clients.All.updateMarker( markers.Values.ToArray() );
+        }
+
+        public void Delete( MarkerModel clientModel )
+        {
+            markers.Remove( clientModel.Id );
+            // send the marker state to the client requesting the update
+            Clients.All.updateMarker( markers.Values.ToArray() );
         }
 
         public void RequestUpdate()
         {
             // send the marker state to the client requesting the update
-            Clients.Caller.updateMarker( _theMarker );
+            Clients.Caller.updateMarker( markers.Values.ToArray() );
         }
     }
 
@@ -30,5 +49,7 @@ namespace SignalRDemo
         public double Latitude { get; set; }
         [JsonProperty( "longitude" )]
         public double Longitude { get; set; }
+        [JsonProperty( "id" )]
+        public int Id { get; set; }
     }
 }
